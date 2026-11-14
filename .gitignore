@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.local
+*.log
+*.ptau
+build/pot*.ptau
+database/*.sqlite
+database/*.db
+.DS_Store
+Thumbs.db

@@ -1,0 +1,22 @@
+{
+  "name": "zk-trust",
+  "version": "1.0.0",
+  "description": "ZK-Trust: Privacy-Preserving Digital Identity Verification using Circom & Groth16",
+  "type": "module",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "test:integration": "node tests/integration.test.js"
+  },
+  "keywords": [
+    "zero-knowledge",
+    "circom",
+    "snarkjs",
+    "groth16",
+    "identity",
+    "privacy",
+    "cybersecurity"
+  ],
+  "author": "ZK-Trust Team",
+  "license": "MIT"
+}
