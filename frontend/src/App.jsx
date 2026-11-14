@@ -1,9 +1,10 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Shield, Github, Heart } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 import { WalletProvider } from './context/WalletContext';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
+import UserDashboard from './pages/UserDashboard';
 import WalletPage from './pages/WalletPage';
 import IssuerPortal from './pages/IssuerPortal';
 import VerifierPortal from './pages/VerifierPortal';
@@ -19,10 +20,13 @@ export default function App() {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/dashboard" element={<UserDashboard />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/issuer" element={<IssuerPortal />} />
               <Route path="/verifier" element={<VerifierPortal />} />
               <Route path="/audit" element={<AuditLogPage />} />
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
 
