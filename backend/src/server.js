@@ -3,17 +3,14 @@ import cors from 'cors';
 import { config } from './config/index.js';
 import { initDatabase, isUsingInMemoryDb } from './db/index.js';
 import { initIssuerKeys } from './services/issuerKeyManager.js';
-import {
-  getIssuerProfile,
-  issueCredential,
-  getCredentialStatus,
-} from './controllers/issuerController.js';
-import {
-  createVerificationChallenge,
-  getVerificationChallenge,
-  verifyProof,
-  getAuditLogs,
-} from './controllers/verifierController.js';
+
+// Modular Route Handlers
+import issuerRoutes from './routes/issuerRoutes.js';
+import verifierRoutes from './routes/verifierRoutes.js';
+import credentialRoutes from './routes/credentialRoutes.js';
+import qrRoutes from './routes/qrRoutes.js';
+import organizationRoutes from './routes/organizationRoutes.js';
+import blockchainRoutes from './routes/blockchainRoutes.js';
 
 const app = express();
 
@@ -30,16 +27,23 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Issuer API Routes
-app.get('/api/issuer/public-key', getIssuerProfile);
-app.post('/api/issuer/issue-credential', issueCredential);
-app.get('/api/issuer/credentials/:id/status', getCredentialStatus);
+// Mount Modular Routes
+app.use('/api/issuer', issuerRoutes);
+app.use('/api/verifier', verifierRoutes);
+app.use('/api/verifier', qrRoutes); // Allows /api/verifier/qr-session
+app.use('/api/credentials', credentialRoutes);
+app.use('/api/qr', qrRoutes);
+app.use('/api/blockchain', blockchainRoutes);
+app.use('/api', organizationRoutes);
 
-// Verifier API Routes
-app.post('/api/verifier/request-challenge', createVerificationChallenge);
-app.get('/api/verifier/requests/:id', getVerificationChallenge);
-app.post('/api/verifier/verify-proof', verifyProof);
-app.get('/api/verifier/audit-logs', getAuditLogs);
+// Direct backward-compatibility aliases
+app.use('/api', issuerRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled request error:', err);
+  res.status(500).json({ error: 'Internal server error', details: err.message });
+});
 
 // Initialize DB and Start Server
 async function start() {

@@ -29,16 +29,18 @@ function isPortListening(port) {
 
 async function run() {
   const backendDir = path.resolve(__dirname, '../backend');
-  const alreadyRunning = await isPortListening(5000);
+  const testPort = process.env.PORT || 5001;
+  const alreadyRunning = await isPortListening(testPort);
 
   let serverProcess = null;
 
   if (alreadyRunning) {
-    console.log('Backend server is already running on port 5000. Reusing live instance for tests...');
+    console.log(`Backend server is already running on port ${testPort}. Reusing live instance for tests...`);
   } else {
     console.log('Starting backend server for test run...');
     serverProcess = spawn('node', ['src/server.js'], {
       cwd: backendDir,
+      env: { ...process.env, PORT: testPort.toString() },
       stdio: 'pipe',
     });
 

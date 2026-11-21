@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShieldCheck,
-  ShieldAlert,
   Wallet,
   Landmark,
   CheckCircle2,
@@ -11,485 +10,268 @@ import {
   ArrowRight,
   Sparkles,
   Lock,
-  Eye,
   EyeOff,
   History,
-  Activity,
-  UserCheck,
+  GraduationCap,
+  FileCheck2,
+  QrCode,
+  ShieldAlert,
+  Link2,
+  Zap,
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { apiService } from '../services/api';
-import ConsentModal from '../components/ConsentModal';
-import { generateAgeProof } from '../services/zkProver';
 
 export default function UserDashboard() {
   const navigate = useNavigate();
-  const {
-    credential,
-    privateData,
-    saveWalletCredential,
-    activeChallenge,
-    setActiveChallenge,
-    consentModalOpen,
-    setConsentModalOpen,
-  } = useWallet();
-
+  const { credentials } = useWallet();
   const [recentLogs, setRecentLogs] = useState([]);
   const [stats, setStats] = useState({ totalLogs: 0, validCount: 0 });
-  const [isProving, setIsProving] = useState(false);
-  const [dashboardNotice, setDashboardNotice] = useState(null);
+  const [blockchainInfo, setBlockchainInfo] = useState(null);
 
   useEffect(() => {
-    const loadLogs = async () => {
+    const loadData = async () => {
       try {
-        const data = await apiService.getAuditLogs();
-        const logs = data.logs || [];
+        const [logData, chainData] = await Promise.all([
+          apiService.getAuditLogs({ limit: 5 }),
+          apiService.getBlockchainStatus().catch(() => null),
+        ]);
+        const logs = logData.logs || [];
         setRecentLogs(logs.slice(0, 4));
         setStats({
           totalLogs: logs.length,
           validCount: logs.filter((l) => l.result === 'VALID').length,
         });
+        setBlockchainInfo(chainData);
       } catch (e) {
-        console.warn('Could not load logs for dashboard:', e);
+        console.warn('Could not load dashboard data:', e);
       }
     };
-    loadLogs();
-  }, [consentModalOpen]);
+    loadData();
+  }, []);
 
-  // Quick preset loading for demonstration
-  const handleQuickLoadPreset = async (presetAge, presetName, presetDob) => {
-    try {
-      setDashboardNotice({ type: 'info', message: `Issuing persona for ${presetName} (Age ${presetAge})...` });
-      const data = await apiService.issueCredential({
-        fullName: presetName,
-        age: presetAge,
-        dateOfBirth: presetDob,
-      });
-      saveWalletCredential(data.credential, data.privateData);
-      setDashboardNotice({
-        type: 'success',
-        message: `Successfully loaded identity: ${presetName} (Age ${presetAge}) with signed Ed25519 commitment.`,
-      });
-    } catch (err) {
-      setDashboardNotice({
-        type: 'error',
-        message: `Failed to issue preset: ${err.response?.data?.error || err.message}`,
-      });
-    }
-  };
-
-  // Launch a simulated verification challenge for user to respond to
-  const handleTriggerChallenge = async (minAge, orgName, purpose) => {
-    try {
-      const challenge = await apiService.createChallenge({
-        verifierName: orgName,
-        purpose,
-        minAge,
-      });
-      setActiveChallenge(challenge);
-      setConsentModalOpen(true);
-    } catch (err) {
-      setDashboardNotice({
-        type: 'error',
-        message: `Failed to create challenge: ${err.message}`,
-      });
-    }
-  };
-
-  const handleApproveProof = async () => {
-    if (!activeChallenge || !credential || !privateData) return;
-    setIsProving(true);
-    try {
-      const proofRes = await generateAgeProof({
-        privateAge: privateData.age,
-        privateSecret: privateData.secret,
-        publicCommitment: credential.commitment,
-        minAge: activeChallenge.minAge,
-        nonce: activeChallenge.nonce,
-      });
-
-      const res = await apiService.verifyProof({
-        requestId: activeChallenge.requestId,
-        proof: proofRes.proof,
-        publicSignals: proofRes.publicSignals,
-        credentialPayload: {
-          credentialId: credential.credentialId,
-          issuerId: credential.issuerId,
-          commitment: credential.commitment,
-          issuedAt: credential.issuedAt,
-          expiresAt: credential.expiresAt,
-        },
-        issuerSignature: credential.issuerSignature,
-      });
-
-      setConsentModalOpen(false);
-      setDashboardNotice({
-        type: 'success',
-        message: `Verification SUCCESS: Verified claim "${res.claim}" for ${res.verifierName} in ${proofRes.executionTimeMs}ms with zero personal data disclosed!`,
-      });
-    } catch (err) {
-      setConsentModalOpen(false);
-      setDashboardNotice({
-        type: 'error',
-        message: `Verification Failed: ${err.response?.data?.error || err.message}`,
-      });
-    } finally {
-      setIsProving(false);
-    }
-  };
-
-  const handleRejectProof = () => {
-    setConsentModalOpen(false);
-    setDashboardNotice({
-      type: 'info',
-      message: 'Verification request was rejected by user. No proof was generated.',
-    });
-  };
+  const featureCards = [
+    {
+      title: 'Student Verification',
+      desc: 'Collegiate enrollment proofs with accredited university keys',
+      icon: GraduationCap,
+      path: '/student',
+      badge: 'Feature 1',
+      color: 'from-emerald-600 to-teal-700',
+    },
+    {
+      title: 'Dynamic Age Proof',
+      desc: '18+, 21+, and custom thresholds with Groth16 SnarkJS',
+      icon: Zap,
+      path: '/age-verification',
+      badge: 'Feature 2',
+      color: 'from-cyan-600 to-blue-700',
+    },
+    {
+      title: 'Privacy-Preserving KYC',
+      desc: 'Tier 1-3 AML compliance proof with zero document leakage',
+      icon: FileCheck2,
+      path: '/kyc',
+      badge: 'Feature 3',
+      color: 'from-purple-600 to-indigo-700',
+    },
+    {
+      title: 'QR-Based Identity',
+      desc: 'Contactless challenge handshake and mobile wallet scan',
+      icon: QrCode,
+      path: '/qr',
+      badge: 'Feature 4',
+      color: 'from-blue-600 to-cyan-700',
+    },
+    {
+      title: 'Multi-Issuer Mint',
+      desc: 'Mint collegiate, civil, and KYC credentials with Ed25519',
+      icon: Landmark,
+      path: '/issuer',
+      badge: 'Feature 5',
+      color: 'from-indigo-600 to-violet-700',
+    },
+    {
+      title: 'Revocation Hub',
+      desc: 'Live cryptographic revocation registry & lifecycle control',
+      icon: ShieldAlert,
+      path: '/credentials',
+      badge: 'Feature 6',
+      color: 'from-rose-600 to-red-700',
+    },
+    {
+      title: 'EVM Issuer Registry',
+      desc: 'Smart contract transparency anchor on Ethereum Sepolia',
+      icon: Link2,
+      path: '/blockchain',
+      badge: 'Feature 7',
+      color: 'from-indigo-600 to-blue-800',
+    },
+    {
+      title: 'Privacy Audit Logs',
+      desc: 'Filterable zero-knowledge verification audit trail',
+      icon: History,
+      path: '/audit',
+      badge: 'Feature 10',
+      color: 'from-slate-700 to-slate-800',
+    },
+  ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      
-      {/* Top Welcome Banner */}
-      <div className="cyber-card p-6 bg-gradient-to-r from-[#0c1322] via-[#141e34] to-[#0c1322] border-cyan-500/40 relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      {/* Hero Welcome */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-500/20 p-8 shadow-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Identity Holder Session</span>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Zero-Knowledge Digital Identity Ecosystem</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-              Welcome, {privateData ? privateData.fullName : 'Guest Citizen'}
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">
+              ZK-Trust Command Center
             </h1>
-            <p className="text-sm text-slate-400 max-w-xl">
-              Your identity credentials are cryptographically protected by zero-knowledge proofs. Manage your verifiable credentials, incoming challenges, and disclosure consent.
+            <p className="text-slate-400 text-sm max-w-2xl">
+              Prove facts about your identity without handing over your personal documents. Backed by Circom 2.2, Groth16
+              ZK-SNARKs on BN254, Ed25519 issuer signatures, and EVM on-chain trust anchors.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Link to="/wallet" className="cyber-btn-primary">
+          <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
+            <Link
+              to="/wallet"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-sm transition-all shadow-lg shadow-cyan-950"
+            >
               <Wallet className="w-4 h-4" />
-              <span>Identity Wallet</span>
-            </Link>
-            <Link to="/issuer" className="cyber-btn-secondary">
-              <Landmark className="w-4 h-4" />
-              <span>Issuer Portal</span>
+              <span>Open Wallet ({credentials.length})</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Notice Banner */}
-      {dashboardNotice && (
-        <div
-          className={`p-4 rounded-xl text-sm flex items-start gap-3 border ${
-            dashboardNotice.type === 'success'
-              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-              : dashboardNotice.type === 'error'
-              ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-              : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
-          }`}
-        >
-          {dashboardNotice.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-          ) : (
-            <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1">{dashboardNotice.message}</div>
-          <button
-            onClick={() => setDashboardNotice(null)}
-            className="text-xs opacity-70 hover:opacity-100 font-bold"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* 4 Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Card 1: Credential Status */}
-        <div className="cyber-card p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span>Credential Status</span>
-            <ShieldCheck className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div className="text-xl font-bold text-white flex items-center gap-2">
-            {credential ? (
-              <>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400">ACTIVE</span>
-              </>
-            ) : (
-              <>
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
-                <span className="text-slate-400">Not Minted</span>
-              </>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            {credential ? 'Ed25519 Issuer Authenticated' : 'Issue a demo ID to start'}
-          </p>
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">
+            Wallet Credentials
+          </span>
+          <div className="text-2xl font-black text-cyan-400">{credentials.length} Active</div>
+          <p className="text-[10px] text-slate-500">Student, Age, KYC & Human</p>
         </div>
 
-        {/* Card 2: Age Claim Available */}
-        <div className="cyber-card p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span>Verifiable Age Claim</span>
-            <Lock className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-xl font-bold text-white">
-            {privateData ? `Age ≥ 18 & ≥ 21` : 'N/A'}
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            {privateData ? `True Age: ${privateData.age} (Zero-Knowledge)` : 'Requires credential'}
-          </p>
+        <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">
+            Verification Events
+          </span>
+          <div className="text-2xl font-black text-emerald-400">{stats.totalLogs} Logged</div>
+          <p className="text-[10px] text-slate-500">{stats.validCount} Valid Proofs</p>
         </div>
 
-        {/* Card 3: Verifications Completed */}
-        <div className="cyber-card p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span>Total Verifications</span>
-            <Activity className="w-4 h-4 text-blue-400" />
-          </div>
-          <div className="text-xl font-bold text-white">
-            {stats.totalLogs} <span className="text-xs font-normal text-slate-400">({stats.validCount} valid)</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">Anti-replay nullifiers tracked</p>
+        <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">
+            ZK Privacy Guarantee
+          </span>
+          <div className="text-2xl font-black text-white">0 Bytes Leaked</div>
+          <p className="text-[10px] text-emerald-400 font-bold">100% Zero-Knowledge</p>
         </div>
 
-        {/* Card 4: Privacy Health */}
-        <div className="cyber-card p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span>Privacy Health Score</span>
-            <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">
+            On-Chain Trust Anchor
+          </span>
+          <div className="text-sm font-bold text-indigo-300 truncate">
+            {blockchainInfo ? blockchainInfo.network : 'Sepolia EVM'}
           </div>
-          <div className="text-xl font-bold text-emerald-400">100% SAFE</div>
-          <p className="text-[11px] text-slate-500 mt-1">Zero birthdates disclosed</p>
+          <p className="text-[10px] text-slate-500">IssuerRegistry.sol</p>
         </div>
-
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        
-        {/* Left Column (2 Cols): Identity Credential Overview & Challenge Simulator */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Active Credential Snapshot */}
-          <div className="cyber-card p-6 border-slate-800 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h2 className="font-bold text-white text-base flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-cyan-400" />
-                <span>Primary Identity Credential</span>
-              </h2>
-              <Link to="/wallet" className="text-xs text-cyan-400 hover:underline flex items-center gap-1">
-                <span>View Full Wallet</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            {credential ? (
-              <div className="space-y-3">
-                <div className="p-4 rounded-xl bg-[#141e34]/70 border border-slate-700/60 font-mono text-xs space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Issuer:</span>
-                    <strong className="text-slate-200">{credential.issuerId}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Credential ID:</span>
-                    <span className="text-slate-300">{credential.credentialId.slice(0, 20)}...</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Poseidon Commitment:</span>
-                    <span className="text-cyan-300 font-bold">{credential.commitment.slice(0, 16)}...</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Expiry Date:</span>
-                    <span className="text-slate-300">{new Date(credential.expiresAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                  <span>Owner: <strong className="text-white">{privateData?.fullName}</strong></span>
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Ed25519 Signed</span>
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6 text-center space-y-3 bg-[#141e34]/40 rounded-xl border border-dashed border-slate-700">
-                <p className="text-sm text-slate-300">You don't have an active credential yet.</p>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    onClick={() => handleQuickLoadPreset(21, 'Alex Vance', '2005-05-14')}
-                    className="cyber-btn-primary text-xs"
-                  >
-                    Quick Mint Demo Citizen (Age 21)
-                  </button>
-                  <Link to="/issuer" className="cyber-btn-secondary text-xs">
-                    Custom Mint in Issuer Portal
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Verification Challenge Inbound Queue */}
-          <div className="cyber-card p-6 border-slate-800 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h2 className="font-bold text-white text-base flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-400" />
-                <span>Simulate Inbound Verification Requests</span>
-              </h2>
-              <span className="text-xs text-slate-400">One-click interactive test</span>
-            </div>
-
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Test how relying parties request compliance checks. Clicking any request will open the **User Consent Screen** before launching the in-browser Groth16 prover.
-            </p>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  handleTriggerChallenge(18, 'Age-Restricted Entertainment Portal', 'Compliance age confirmation (18+)')
-                }
-                className="p-3 text-left rounded-lg bg-[#141e34] hover:bg-[#1e2c4a] border border-slate-700 hover:border-cyan-500/40 transition-all"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white text-xs">Entertainment Service</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 font-bold">
-                    Age ≥ 18
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">Standard legal adult compliance check</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleTriggerChallenge(21, 'FinTech Trading Exchange', 'KYC age verification requirement (21+)')
-                }
-                className="p-3 text-left rounded-lg bg-[#141e34] hover:bg-[#1e2c4a] border border-slate-700 hover:border-cyan-500/40 transition-all"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white text-xs">FinTech Exchange</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 font-bold">
-                    Age ≥ 21
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">Strict regulatory compliance check</p>
-              </button>
-            </div>
-          </div>
-
+      {/* 8 Feature Modules Hub */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-200">Identity Modules & Services</h2>
+          <span className="text-xs text-slate-500">10 Core Features Fully Integrated</span>
         </div>
 
-        {/* Right Column (1 Col): Demo Persona Switcher & Recent History */}
-        <div className="space-y-6">
-          
-          {/* Quick Demo Personas */}
-          <div className="cyber-card p-6 border-slate-800 space-y-4">
-            <h3 className="font-bold text-white text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span>Switch Demo Persona</span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Instantly mint different personas to test boundary conditions and underage rejections.
-            </p>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLoadPreset(21, 'Alex Vance', '2005-05-14')}
-                className="w-full text-left p-2.5 rounded-lg bg-[#141e34] hover:bg-[#1e2c4a] border border-slate-700 text-xs transition-colors flex items-center justify-between"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {featureCards.map((feat) => {
+            const Icon = feat.icon;
+            return (
+              <Link
+                key={feat.title}
+                to={feat.path}
+                className="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all hover:shadow-xl hover:-translate-y-0.5 space-y-3"
               >
-                <div>
-                  <div className="font-semibold text-white">Alex Vance</div>
-                  <div className="text-[11px] text-slate-400">Adult (Age 21) • Passes 18 & 21</div>
-                </div>
-                <span className="text-[10px] text-emerald-400 font-bold">ADULT</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLoadPreset(17, 'Alice Minor', '2009-08-20')}
-                className="w-full text-left p-2.5 rounded-lg bg-[#141e34] hover:bg-[#1e2c4a] border border-slate-700 text-xs transition-colors flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-semibold text-rose-300">Alice Minor</div>
-                  <div className="text-[11px] text-slate-400">Minor (Age 17) • Circuit Rejects</div>
-                </div>
-                <span className="text-[10px] text-rose-400 font-bold">UNDERAGE</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLoadPreset(26, 'Marcus Miller', '2000-02-10')}
-                className="w-full text-left p-2.5 rounded-lg bg-[#141e34] hover:bg-[#1e2c4a] border border-slate-700 text-xs transition-colors flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-semibold text-white">Marcus Miller</div>
-                  <div className="text-[11px] text-slate-400">Senior Adult (Age 26)</div>
-                </div>
-                <span className="text-[10px] text-emerald-400 font-bold">ADULT</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Privacy History Widget */}
-          <div className="cyber-card p-6 border-slate-800 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <History className="w-4 h-4 text-cyan-400" />
-                <span>Recent Privacy Trail</span>
-              </h3>
-              <Link to="/audit" className="text-xs text-cyan-400 hover:underline">
-                View All
-              </Link>
-            </div>
-
-            {recentLogs.length === 0 ? (
-              <p className="text-xs text-slate-500 py-4 text-center">No verification events yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {recentLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-2.5 rounded-lg bg-[#141e34]/70 border border-slate-800 text-xs flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-medium text-slate-200">{log.verifier_name}</div>
-                      <div className="text-[10px] text-slate-400">{log.requested_claim}</div>
-                    </div>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        log.result === 'VALID'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                      }`}
-                    >
-                      {log.result}
-                    </span>
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl bg-gradient-to-br ${feat.color} text-white shadow-md`}>
+                    <Icon className="w-5 h-5" />
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                    {feat.badge}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-200 text-sm group-hover:text-cyan-300 transition-colors">
+                    {feat.title}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{feat.desc}</p>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-cyan-400 group-hover:gap-1.5 transition-all">
+                  <span>Launch module</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </div>
+              </Link>
+            );
+          })}
         </div>
-
       </div>
 
-      {/* Consent Modal for User Agency */}
-      <ConsentModal
-        isOpen={consentModalOpen}
-        challenge={activeChallenge}
-        onApprove={handleApproveProof}
-        onReject={handleRejectProof}
-        isProving={isProving}
-      />
+      {/* Recent Verifications Feed */}
+      <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-200 flex items-center gap-2">
+            <History className="w-4 h-4 text-cyan-400" />
+            <span>Recent Zero-Knowledge Verifications</span>
+          </h2>
+          <Link to="/audit" className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold">
+            View full audit trail &rarr;
+          </Link>
+        </div>
 
+        {recentLogs.length === 0 ? (
+          <p className="text-xs text-slate-500 py-4 text-center">No verifications recorded yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {recentLogs.map((log) => (
+              <div
+                key={log.id}
+                className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+              >
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-slate-200">{log.verifier_name}</div>
+                  <div className="text-[11px] text-slate-400">
+                    Claim:{' '}
+                    <span className="font-mono text-cyan-400 font-bold">{log.requested_claim}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      log.result === 'VALID'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                    }`}
+                  >
+                    {log.result}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {new Date(log.verified_at).toLocaleTimeString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

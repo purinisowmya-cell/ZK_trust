@@ -12,12 +12,14 @@ const buildDir = path.resolve(__dirname, '../circuits/build');
 const wasmPath = path.join(buildDir, 'age_verification_js/age_verification.wasm');
 const zkeyPath = path.join(buildDir, 'age_verification_final.zkey');
 
+const PORT = process.env.PORT || 5001;
+
 function request(method, path, body = null) {
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
         hostname: '127.0.0.1',
-        port: 5000,
+        port: PORT,
         path: path.startsWith('/api') ? path : '/api' + path,
         method,
         headers: { 'Content-Type': 'application/json' },

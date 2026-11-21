@@ -13,7 +13,8 @@ const wasmPath = path.join(circuitsDir, 'age_verification_js/age_verification.wa
 const zkeyPath = path.join(circuitsDir, 'age_verification_final.zkey');
 const vkeyPath = path.join(circuitsDir, 'verification_key.json');
 
-const BASE_URL = 'http://localhost:5000';
+const PORT = process.env.PORT || 5001;
+const BASE_URL = `http://localhost:${PORT}`;
 
 // Helper for making JSON HTTP requests
 function request(method, pathUrl, body = null) {
@@ -21,7 +22,7 @@ function request(method, pathUrl, body = null) {
     const fullPath = pathUrl.startsWith('/api') ? pathUrl : '/api' + (pathUrl.startsWith('/') ? pathUrl : '/' + pathUrl);
     const options = {
       hostname: '127.0.0.1',
-      port: 5000,
+      port: PORT,
       path: fullPath,
       method: method,
       headers: {

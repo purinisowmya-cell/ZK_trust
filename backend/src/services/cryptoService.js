@@ -67,6 +67,15 @@ export function generateEd25519KeyPair() {
 }
 
 /**
+ * Converts any arbitrary string or value into a deterministic BN254 scalar field element.
+ */
+export function hashStringToField(str) {
+  const hash = crypto.createHash('sha256').update(String(str)).digest();
+  // Take 31 bytes to guarantee it fits safely in BN254 scalar field (< 2^253)
+  return BigInt('0x' + hash.subarray(0, 31).toString('hex')).toString();
+}
+
+/**
  * Signs a canonical credential payload using the Issuer's Ed25519 private key.
  */
 export function signCredentialPayload(payload, privateKeyPem) {

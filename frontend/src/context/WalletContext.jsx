@@ -2,25 +2,38 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const WalletContext = createContext();
 
-const LOCAL_STORAGE_KEY = 'zktrust_wallet_data';
+const LOCAL_STORAGE_KEY = 'zktrust_wallet_data_v2';
+const LEGACY_STORAGE_KEY = 'zktrust_wallet_data';
 
 export function WalletProvider({ children }) {
-  const [currentRole, setCurrentRole] = useState('user'); // 'user' | 'issuer' | 'verifier'
-  const [credential, setCredential] = useState(null);
-  const [privateData, setPrivateData] = useState(null);
+  const [currentRole, setCurrentRole] = useState('user'); // 'user' | 'issuer' | 'verifier' | 'student' | 'admin'
+  const [credentials, setCredentials] = useState([]);
+  const [activeCredentialId, setActiveCredentialId] = useState(null);
   const [activeChallenge, setActiveChallenge] = useState(null);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
 
-  // Load saved demo credential from local storage on mount
+  // Load saved credentials from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const savedV2 = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedV2) {
+        const parsed = JSON.parse(savedV2);
+        if (Array.isArray(parsed.credentials) && parsed.credentials.length > 0) {
+          setCredentials(parsed.credentials);
+          setActiveCredentialId(parsed.activeCredentialId || parsed.credentials[0].credential.credentialId);
+          return;
+        }
+      }
+
+      // Fallback: check legacy single credential
+      const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacySaved) {
+        const parsed = JSON.parse(legacySaved);
         if (parsed.credential && parsed.privateData) {
-          setCredential(parsed.credential);
-          setPrivateData(parsed.privateData);
+          const item = { credential: parsed.credential, privateData: parsed.privateData };
+          setCredentials([item]);
+          setActiveCredentialId(parsed.credential.credentialId);
         }
       }
     } catch (e) {
@@ -28,35 +41,93 @@ export function WalletProvider({ children }) {
     }
   }, []);
 
-  const saveWalletCredential = (newCred, newPrivateData) => {
-    setCredential(newCred);
-    setPrivateData(newPrivateData);
+  // Persist credentials whenever they change
+  const persistState = (newCreds, newActiveId) => {
     try {
       localStorage.setItem(
         LOCAL_STORAGE_KEY,
-        JSON.stringify({ credential: newCred, privateData: newPrivateData })
+        JSON.stringify({ credentials: newCreds, activeCredentialId: newActiveId })
       );
     } catch (e) {
       console.warn('Failed to persist wallet to storage:', e);
     }
   };
 
+  const addCredential = (newCred, newPrivateData) => {
+    setCredentials((prev) => {
+      // Replace if existing ID or prepend new
+      const filtered = prev.filter((c) => c.credential.credentialId !== newCred.credentialId);
+      const updated = [{ credential: newCred, privateData: newPrivateData }, ...filtered];
+      persistState(updated, newCred.credentialId);
+      return updated;
+    });
+    setActiveCredentialId(newCred.credentialId);
+  };
+
+  // Backward compatibility: saveWalletCredential
+  const saveWalletCredential = (newCred, newPrivateData) => {
+    addCredential(newCred, newPrivateData);
+  };
+
+  const removeCredential = (credentialId) => {
+    setCredentials((prev) => {
+      const updated = prev.filter((c) => c.credential.credentialId !== credentialId);
+      const nextActive = updated.length > 0 ? updated[0].credential.credentialId : null;
+      persistState(updated, nextActive);
+      setActiveCredentialId(nextActive);
+      return updated;
+    });
+  };
+
+  const updateCredentialStatus = (credentialId, status, revocationDetails = null) => {
+    setCredentials((prev) => {
+      const updated = prev.map((item) => {
+        if (item.credential.credentialId === credentialId) {
+          return {
+            ...item,
+            credential: {
+              ...item.credential,
+              status,
+              revocationDetails,
+            },
+          };
+        }
+        return item;
+      });
+      persistState(updated, activeCredentialId);
+      return updated;
+    });
+  };
+
   const clearWallet = () => {
-    setCredential(null);
-    setPrivateData(null);
+    setCredentials([]);
+    setActiveCredentialId(null);
     try {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch (e) {}
   };
+
+  // Active credential and private witness data getters
+  const activeItem = credentials.find((c) => c.credential.credentialId === activeCredentialId) || credentials[0] || null;
+  const credential = activeItem ? activeItem.credential : null;
+  const privateData = activeItem ? activeItem.privateData : null;
 
   return (
     <WalletContext.Provider
       value={{
         currentRole,
         setCurrentRole,
+        credentials,
+        activeCredentialId,
+        setActiveCredentialId,
+        activeItem,
         credential,
         privateData,
+        addCredential,
         saveWalletCredential,
+        removeCredential,
+        updateCredentialStatus,
         clearWallet,
         activeChallenge,
         setActiveChallenge,
