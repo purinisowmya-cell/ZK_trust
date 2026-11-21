@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiService } from '../services/api';
 
 const WalletContext = createContext();
 
@@ -99,6 +100,46 @@ export function WalletProvider({ children }) {
     });
   };
 
+  const syncWalletRevocations = async () => {
+    if (credentials.length === 0) return;
+    try {
+      const ids = credentials.map((c) => c.credential.credentialId);
+      const res = await apiService.batchCheckStatus(ids);
+      if (Array.isArray(res.statuses)) {
+        setCredentials((prev) => {
+          let changed = false;
+          const updated = prev.map((item) => {
+            const check = res.statuses.find((s) => s.credentialId === item.credential.credentialId);
+            if (check && (check.status !== item.credential.status)) {
+              changed = true;
+              return {
+                ...item,
+                credential: {
+                  ...item.credential,
+                  status: check.status,
+                  revocationDetails: check.revocationDetails,
+                },
+              };
+            }
+            return item;
+          });
+          if (changed) {
+            persistState(updated, activeCredentialId);
+          }
+          return updated;
+        });
+      }
+    } catch (e) {
+      console.warn('Could not auto-sync wallet revocations:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (credentials.length > 0) {
+      syncWalletRevocations();
+    }
+  }, [credentials.length]);
+
   const clearWallet = () => {
     setCredentials([]);
     setActiveCredentialId(null);
@@ -128,6 +169,7 @@ export function WalletProvider({ children }) {
         saveWalletCredential,
         removeCredential,
         updateCredentialStatus,
+        syncWalletRevocations,
         clearWallet,
         activeChallenge,
         setActiveChallenge,

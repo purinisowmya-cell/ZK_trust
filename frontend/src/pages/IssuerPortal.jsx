@@ -58,6 +58,45 @@ export default function IssuerPortal() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [copiedKey, setCopiedKey] = useState(false);
 
+  // Key Rotation & Dashboard State
+  const [rotatingKey, setRotatingKey] = useState(false);
+  const [rotateSuccess, setRotateSuccess] = useState(null);
+  const [issuerStats, setIssuerStats] = useState(null);
+
+  const fetchIssuerStats = async (id) => {
+    try {
+      const data = await apiService.getIssuerDashboard(id);
+      setIssuerStats(data.stats);
+    } catch (e) {
+      setIssuerStats(null);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedIssuerId) {
+      fetchIssuerStats(selectedIssuerId);
+    }
+  }, [selectedIssuerId]);
+
+  const handleRotateKey = async () => {
+    if (!window.confirm(`Are you sure you want to rotate the Ed25519 signing keypair for ${selectedIssuer?.name}?`)) return;
+    try {
+      setRotatingKey(true);
+      setErrorMessage(null);
+      const res = await apiService.rotateIssuerKey({ issuerId: selectedIssuerId });
+      setRotateSuccess('Ed25519 keypair successfully rotated and mirrored to on-chain registry!');
+      // Update local issuer list
+      setIssuers((prev) =>
+        prev.map((i) => (i.issuer_id === selectedIssuerId ? { ...i, public_key: res.newPublicKey } : i))
+      );
+      setTimeout(() => setRotateSuccess(null), 3500);
+    } catch (err) {
+      setErrorMessage(err.response?.data?.error || err.message || 'Key rotation failed.');
+    } finally {
+      setRotatingKey(false);
+    }
+  };
+
   useEffect(() => {
     const fetchIssuers = async () => {
       try {
@@ -215,6 +254,37 @@ export default function IssuerPortal() {
                     {selectedIssuer.public_key}
                   </pre>
                 </div>
+
+                {issuerStats && (
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-center font-mono">
+                    <div className="p-2 rounded bg-slate-950">
+                      <span className="text-[9px] text-slate-500 block uppercase font-sans">Issued</span>
+                      <span className="text-white font-bold text-xs">{issuerStats.total_issued}</span>
+                    </div>
+                    <div className="p-2 rounded bg-slate-950">
+                      <span className="text-[9px] text-slate-500 block uppercase font-sans">Active</span>
+                      <span className="text-emerald-400 font-bold text-xs">{issuerStats.active_count}</span>
+                    </div>
+                    <div className="p-2 rounded bg-slate-950">
+                      <span className="text-[9px] text-slate-500 block uppercase font-sans">Revoked</span>
+                      <span className="text-rose-400 font-bold text-xs">{issuerStats.revoked_count}</span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleRotateKey}
+                  disabled={rotatingKey}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all border border-slate-700"
+                >
+                  {rotatingKey ? 'Rotating Keypair...' : 'Rotate Ed25519 Signing Key'}
+                </button>
+
+                {rotateSuccess && (
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px]">
+                    {rotateSuccess}
+                  </div>
+                )}
               </div>
             )}
           </div>

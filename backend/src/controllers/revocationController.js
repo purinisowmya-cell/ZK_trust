@@ -1,7 +1,7 @@
 import { query } from '../db/index.js';
 
 /**
- * Revokes an existing credential.
+ * Revokes an existing credential (Feature 6).
  */
 export async function revokeCredential(req, res) {
   try {
@@ -47,6 +47,19 @@ export async function revokeCredential(req, res) {
       [credentialId]
     );
 
+    // 3. Log audit event
+    await query(
+      `INSERT INTO verification_logs 
+        (request_id, verifier_id, verifier_name, requested_claim, nullifier, commitment, result, rejection_reason, issuer_id, credential_type, verified_at)
+       VALUES ($1, $2, 'Authority Revocation Registry', 'Revocation Event', 'n/a', 'n/a', 'REJECTED', $3, $4, 'REVOCATION', CURRENT_TIMESTAMP)`,
+      [
+        `rev_${Date.now()}`,
+        targetIssuerId,
+        `Revoked: ${reason}`,
+        targetIssuerId,
+      ]
+    );
+
     console.log(`[Revocation] Credential '${credentialId}' REVOKED by '${targetIssuerId}'. Reason: ${reason}`);
 
     return res.status(200).json({
@@ -60,7 +73,7 @@ export async function revokeCredential(req, res) {
 }
 
 /**
- * Checks the real-time revocation status of any credential.
+ * Checks the real-time revocation status of any single credential.
  */
 export async function getRevocationStatus(req, res) {
   try {
@@ -95,6 +108,48 @@ export async function getRevocationStatus(req, res) {
     });
   } catch (err) {
     return res.status(500).json({ error: `Failed to check revocation status: ${err.message}` });
+  }
+}
+
+/**
+ * Batch check revocation status for an array of credentials in the user wallet.
+ */
+export async function batchCheckStatus(req, res) {
+  try {
+    const { credentialIds = [] } = req.body;
+
+    if (!Array.isArray(credentialIds) || credentialIds.length === 0) {
+      return res.json({ statuses: [] });
+    }
+
+    // Build parameterized query
+    const placeholders = credentialIds.map((_, i) => `$${i + 1}`).join(',');
+    const credResult = await query(
+      `SELECT c.credential_id, c.issuer_id, c.status, c.expires_at,
+              r.reason as revocation_reason, r.revoked_at
+       FROM credentials c
+       LEFT JOIN credential_revocations r ON c.credential_id = r.credential_id
+       WHERE c.credential_id IN (${placeholders})`,
+      credentialIds
+    );
+
+    const now = new Date();
+    const statuses = credResult.rows.map((row) => {
+      const isRevoked = row.status === 'REVOKED' || !!row.revocation_reason;
+      const isExpired = new Date(row.expires_at) < now;
+      return {
+        credentialId: row.credential_id,
+        issuerId: row.issuer_id,
+        isRevoked,
+        isExpired,
+        status: isRevoked ? 'REVOKED' : isExpired ? 'EXPIRED' : row.status,
+        revocationDetails: isRevoked ? { reason: row.revocation_reason, revokedAt: row.revoked_at } : null,
+      };
+    });
+
+    return res.json({ statuses });
+  } catch (err) {
+    return res.status(500).json({ error: `Batch status check failed: ${err.message}` });
   }
 }
 

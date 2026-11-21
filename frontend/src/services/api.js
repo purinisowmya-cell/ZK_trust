@@ -37,6 +37,26 @@ export const apiService = {
     return res.data;
   },
 
+  registerUniversity: async (payload) => {
+    const res = await api.post('/issuer/university/register', payload);
+    return res.data;
+  },
+
+  listColleges: async () => {
+    const res = await api.get('/issuer/colleges');
+    return res.data;
+  },
+
+  getIssuerDashboard: async (issuerId) => {
+    const res = await api.get(`/issuer/dashboard/${encodeURIComponent(issuerId)}`);
+    return res.data;
+  },
+
+  rotateIssuerKey: async (payload) => {
+    const res = await api.post('/issuer/rotate-key', payload);
+    return res.data;
+  },
+
   getIssuerProfile: async (issuerId = null) => {
     const url = issuerId ? `/issuer/public-key?issuerId=${encodeURIComponent(issuerId)}` : '/issuer/public-key';
     const res = await api.get(url);
@@ -85,6 +105,11 @@ export const apiService = {
   revokeCredential: async (payload) => {
     // payload: { credentialId, issuerId, reason }
     const res = await api.post('/credentials/revoke', payload);
+    return res.data;
+  },
+
+  batchCheckStatus: async (credentialIds) => {
+    const res = await api.post('/credentials/batch-status', { credentialIds });
     return res.data;
   },
 

@@ -429,18 +429,7 @@ export async function verifySelectiveDisclosure(req, res) {
       return res.status(400).json({ error: 'Untrusted or inactive issuer authority.' });
     }
 
-    // 2. Verify Issuer Signature
-    const isSigValid = verifyCredentialSignature(
-      credentialPayload,
-      issuerSignature,
-      issuerResult.rows[0].public_key
-    );
-
-    if (!isSigValid) {
-      return res.status(400).json({ error: 'Invalid issuer signature. Credential was modified or forged.' });
-    }
-
-    // 3. Check Revocation Status
+    // 2. Check Revocation Status (Fast-fail if revoked)
     const revCheck = await query(
       'SELECT id, reason FROM credential_revocations WHERE credential_id = $1',
       [credentialPayload.credentialId]
@@ -450,9 +439,26 @@ export async function verifySelectiveDisclosure(req, res) {
       return res.status(400).json({ error: `Credential is REVOKED. Reason: ${revCheck.rows[0].reason}` });
     }
 
+    // Check credentials table status
+    const credStatusCheck = await query('SELECT status FROM credentials WHERE credential_id = $1', [credentialPayload.credentialId]);
+    if (credStatusCheck.rows.length > 0 && credStatusCheck.rows[0].status === 'REVOKED') {
+      return res.status(400).json({ error: 'Credential is REVOKED by the issuer authority.' });
+    }
+
     // Check expiry
     if (new Date(credentialPayload.expiresAt) < new Date()) {
       return res.status(400).json({ error: 'Credential has expired.' });
+    }
+
+    // 3. Verify Issuer Signature
+    const isSigValid = verifyCredentialSignature(
+      credentialPayload,
+      issuerSignature,
+      issuerResult.rows[0].public_key
+    );
+
+    if (!isSigValid) {
+      return res.status(400).json({ error: 'Invalid issuer signature. Credential was modified or forged.' });
     }
 
     // 4. Generate unique audit nullifier

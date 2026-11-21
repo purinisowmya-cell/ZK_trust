@@ -7,12 +7,24 @@ import {
   issueHumanCredential,
   getCredentialStatus,
   listCredentials,
+  registerUniversity,
+  listColleges,
+  getIssuerDashboard,
+  rotateIssuerKey,
 } from '../controllers/issuerController.js';
 
 const router = express.Router();
 
 // Public key & profile
 router.get('/public-key', getIssuerProfile);
+
+// Collegiate Registration & Directory (Feature 1 & 5)
+router.post('/university/register', registerUniversity);
+router.get('/colleges', listColleges);
+
+// Issuer Management Dashboard & Key Rotation (Feature 5)
+router.get('/dashboard/:issuerId', getIssuerDashboard);
+router.post('/rotate-key', rotateIssuerKey);
 
 // Credential Issuance Endpoints
 router.post('/issue-credential', issueCredential); // Age Credential
