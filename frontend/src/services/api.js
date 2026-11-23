@@ -165,8 +165,19 @@ export const apiService = {
   },
 
   submitQrProof: async (sessionId, payload) => {
-    // payload: { proof, publicSignals, credentialPayload, issuerSignature, disclosedClaims }
+    // payload: { proof, publicSignals, credentialPayload, issuerSignature, disclosedClaims, rejectedClaims, credentialBundles }
     const res = await api.post(`/verifier/qr-session/${sessionId}/submit`, payload);
+    return res.data;
+  },
+
+  rejectQrSession: async (sessionId, payload = {}) => {
+    // payload: { reason, credentialId }
+    const res = await api.post(`/verifier/qr-session/${sessionId}/reject`, payload);
+    return res.data;
+  },
+
+  getConsentRecords: async () => {
+    const res = await api.get('/verifier/consent-records');
     return res.data;
   },
 

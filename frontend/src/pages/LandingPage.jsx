@@ -21,7 +21,7 @@ export default function LandingPage() {
       <section className="relative pt-12 pb-16 text-center max-w-4xl mx-auto px-4">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-6 shadow-sm shadow-cyan-500/20">
           <Fingerprint className="w-3.5 h-3.5" />
-          <span>Hack With Aditya 2026 • Cybersecurity & Digital Trust</span>
+          
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">

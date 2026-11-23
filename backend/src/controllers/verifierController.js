@@ -60,6 +60,7 @@ export async function createVerificationChallenge(req, res) {
       verifierId,
       verifierName,
       purpose,
+      status: 'PENDING',
       expiresAt,
     });
   } catch (err) {
@@ -552,7 +553,7 @@ export async function getAuditLogs(req, res) {
 
     let queryText = `
       SELECT id, request_id, verifier_id, verifier_name, requested_claim, 
-             nullifier, result, rejection_reason, issuer_id, credential_type, verified_at 
+             nullifier, commitment, result, rejection_reason, issuer_id, credential_type, verified_at 
       FROM verification_logs 
       WHERE 1=1
     `;
